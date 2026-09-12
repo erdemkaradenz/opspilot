@@ -1,7 +1,10 @@
-from sqlalchemy import event
-from sqlalchemy.orm import Session, ORMExecuteState, with_loader_criteria
-from contextvars import ContextVar
 import uuid
+from contextvars import ContextVar
+
+from sqlalchemy import event
+from sqlalchemy.orm import ORMExecuteState, Session, with_loader_criteria
+
+from models import TenantAwareModel
 
 # Geçerli isteğin org_id'sini thread-safe şekilde tutacak değişken
 current_tenant_id: ContextVar[uuid.UUID | None] = ContextVar("current_tenant_id", default=None)
