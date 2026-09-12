@@ -1,0 +1,40 @@
+name: OpsPilot CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu Checkout Et
+        uses: actions/checkout@v4
+
+      - name: Python 3.10 Kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Poetry Kurulumu
+        run: curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Bağımlılıkları Önbelleğe Al (Cache) ve Yükle
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Bağımlılıkları Yükle (Poetry)
+        run: poetry install --no-interaction --no-root
+
+      - name: Kod Kalitesi Kontrolü (Ruff Linter)
+        run: poetry run ruff check .
+
+      - name: Birim Testleri Koştur (Pytest)
+        run: poetry run pytest -v
