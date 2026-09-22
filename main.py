@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
             REDIS_URL, encoding="utf8", decode_responses=True
         )
         print("✅ Redis aktif ve state'e eklendi.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"⚠️ Redis bağlantı hatası (Atlanıyor): {e}")
         app.state.redis = None
 
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
         ingestion_api.kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
         await ingestion_api.kafka_producer.start()
         print("✅ Kafka Producer aktif.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"⚠️ Kafka bağlantı hatası (Atlanıyor): {e}")
         ingestion_api.kafka_producer = None
 
