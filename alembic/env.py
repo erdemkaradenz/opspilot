@@ -1,17 +1,18 @@
 import asyncio
 import os
 import sys
-from os.path import dirname, abspath
+from logging.config import fileConfig
+from os.path import abspath, dirname
 
 # Projenin kök dizinini Python yollarına ekliyoruz (Model Import hatasını ve tablo oluşmama riskini önlemek için)
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
-from logging.config import fileConfig
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
 from alembic import context
-from dotenv import load_dotenv
 
 # Şimdi models modülü KESİN olarak bulunacak ve tablolar başarıyla oluşturulacak
 from models import Base
@@ -25,12 +26,14 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+
 def get_url():
     """Çevre değişkeninden URL'i alır ve asenkron formata zorlar."""
     url = os.environ.get("DATABASE_URL", "")
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
+
 
 # URL'i alembic config'ine bas
 config.set_main_option("sqlalchemy.url", get_url())
