@@ -1,18 +1,21 @@
 # main.py
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
-from redis import asyncio as aioredis
-from aiokafka import AIOKafkaProducer
 import os
-import api.ingestion as ingestion_api
+from contextlib import asynccontextmanager
+
+from aiokafka import AIOKafkaProducer
 from dotenv import load_dotenv
-#from fastapi_limiter import FastAPILimiter
+from fastapi import FastAPI
+
+# from fastapi_limiter import FastAPILimiter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from core.tracing import setup_tracing
+from redis import asyncio as aioredis
+
 import api.analysis as analysis_api
 import api.incidents as incidents_api
+import api.ingestion as ingestion_api
 import api.organizations as organizations_api
+from core.tracing import setup_tracing
 
 load_dotenv()
 
@@ -21,12 +24,15 @@ KAFKA_BROKER = os.environ["KAFKA_BROKER_URL"]
 
 # Tracing'i başlat
 tracer = setup_tracing("opspilot-ingestion-gateway")
-SQLAlchemyInstrumentor().instrument() # Veritabanı sorgularının sürelerini otomatik ölçer
+SQLAlchemyInstrumentor().instrument()  # Veritabanı sorgularının sürelerini otomatik ölçer
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Redis bağlantı havuzu (connection pool) oluştur ve app.state'e kaydet
-    app.state.redis = aioredis.from_url(REDIS_URL, encoding="utf8", decode_responses=True)
+    app.state.redis = aioredis.from_url(
+        REDIS_URL, encoding="utf8", decode_responses=True
+    )
     print("Redis aktif ve state'e eklendi.")
 
     # Kafka Producer'ı başlat
@@ -34,13 +40,14 @@ async def lifespan(app: FastAPI):
     await ingestion_api.kafka_producer.start()
     print("Kafka Producer aktif.")
 
-    yield 
+    yield
 
     # Kapanışta kaynakları sızdırmadan (memory leak) temizle
     await app.state.redis.close()
     if ingestion_api.kafka_producer:
         await ingestion_api.kafka_producer.stop()
     print("Bağlantılar güvenli bir şekilde kapatıldı.")
+
 
 app = FastAPI(title="OpsPilot Ingestion Gateway", lifespan=lifespan)
 FastAPIInstrumentor.instrument_app(app)

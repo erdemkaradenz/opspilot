@@ -1,19 +1,20 @@
 # api/organizations.py
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.session import get_db
-from schemas.organization import OrganizationCreate, OrganizationResponse
 from models import Organization
+from schemas.organization import OrganizationCreate, OrganizationResponse
 
 router = APIRouter()
 
 
 @router.post("/organizations", status_code=201, response_model=OrganizationResponse)
 async def create_organization(
-    payload: OrganizationCreate,
-    db: AsyncSession = Depends(get_db)
+    payload: OrganizationCreate, db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Yeni bir organizasyon oluşturur."""
     new_org = Organization(
@@ -29,9 +30,7 @@ async def create_organization(
 
 
 @router.get("/organizations", response_model=list[OrganizationResponse])
-async def list_organizations(
-    db: AsyncSession = Depends(get_db)
-):
+async def list_organizations(db: Annotated[AsyncSession, Depends(get_db)]):
     """Tüm organizasyonları listeler."""
     stmt = select(Organization)
     result = await db.execute(stmt)
