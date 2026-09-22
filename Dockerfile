@@ -61,4 +61,4 @@ USER opsuser
 EXPOSE 8000
 
 # Önce şema güncellenir, sonra tohumlama yapılır, en son web sunucusu ayağa kalkar!
-CMD ["sh", "-c", "alembic upgrade head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && python seed.py && uvicorn main:app --host 0.0.0.0 --port 8000"]
