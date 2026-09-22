@@ -29,23 +29,34 @@ SQLAlchemyInstrumentor().instrument()  # Veritabanı sorgularının sürelerini 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Redis bağlantı havuzu (connection pool) oluştur ve app.state'e kaydet
-    app.state.redis = aioredis.from_url(
-        REDIS_URL, encoding="utf8", decode_responses=True
-    )
-    print("Redis aktif ve state'e eklendi.")
+    # Redis bağlantısı (Hatalara Dayanıklı)
+    try:
+        app.state.redis = aioredis.from_url(
+            REDIS_URL, encoding="utf8", decode_responses=True
+        )
+        print("✅ Redis aktif ve state'e eklendi.")
+    except Exception as e:
+        print(f"⚠️ Redis bağlantı hatası (Atlanıyor): {e}")
+        app.state.redis = None
 
-    # Kafka Producer'ı başlat
-    ingestion_api.kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
-    await ingestion_api.kafka_producer.start()
-    print("Kafka Producer aktif.")
+    # Kafka Producer (Hatalara Dayanıklı)
+    try:
+        ingestion_api.kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
+        await ingestion_api.kafka_producer.start()
+        print("✅ Kafka Producer aktif.")
+    except Exception as e:
+        print(f"⚠️ Kafka bağlantı hatası (Atlanıyor): {e}")
+        ingestion_api.kafka_producer = None
 
     yield
 
     # Kapanışta kaynakları sızdırmadan (memory leak) temizle
-    await app.state.redis.close()
-    if ingestion_api.kafka_producer:
+    if hasattr(app.state, 'redis') and app.state.redis:
+        await app.state.redis.close()
+        
+    if getattr(ingestion_api, 'kafka_producer', None):
         await ingestion_api.kafka_producer.stop()
+        
     print("Bağlantılar güvenli bir şekilde kapatıldı.")
 
 
