@@ -153,6 +153,16 @@ resource "azurerm_postgresql_flexible_server" "postgres" {
 }
 
 # ==========================================
+# 3.1. VERİTABANI EKLENTİSİ (PGVECTOR)
+# Yapay zeka ve vektör aramaları için Azure'da izin vermeliyiz
+# ==========================================
+resource "azurerm_postgresql_flexible_server_configuration" "pg_ext" {
+  name      = "azure.extensions"
+  server_id = azurerm_postgresql_flexible_server.postgres.id
+  value     = "vector"
+}
+
+# ==========================================
 # 4. CONTAINER REGISTRY & GÜVENLİK (IAM)
 # ==========================================
 resource "azurerm_container_registry" "acr" {
