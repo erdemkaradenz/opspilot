@@ -1,5 +1,37 @@
+# ==========================================
+# Python & Sanal Ortam Çöpleri
+# ==========================================
 __pycache__/
 *.pyc
 .env
+.env.*
 .pytest_cache/
 .ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# ==========================================
+# Terraform & Bulut Güvenlik Kalkanı
+# ==========================================
+# 1. Sağlayıcı (Provider) binary çöplüğü
+**/.terraform/*
+
+# 2. State dosyaları
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# 3. Tüm Değişken Dosyaları (Sadece terraform.tfvars değil, TÜMÜ)
+*.tfvars
+*.tfvars.json
+
+# 4. Hata ve override logları
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# NOT: .terraform.lock.hcl dosyası commit EDİLMELİDİR (Poetry lock gibi davranır).

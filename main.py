@@ -1,0 +1,52 @@
+# main.py
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from redis import asyncio as aioredis
+from aiokafka import AIOKafkaProducer
+import os
+import api.ingestion as ingestion_api
+from dotenv import load_dotenv
+#from fastapi_limiter import FastAPILimiter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from core.tracing import setup_tracing
+import api.analysis as analysis_api
+import api.incidents as incidents_api
+import api.organizations as organizations_api
+
+load_dotenv()
+
+REDIS_URL = os.environ["REDIS_URL"]
+KAFKA_BROKER = os.environ["KAFKA_BROKER_URL"]
+
+# Tracing'i başlat
+tracer = setup_tracing("opspilot-ingestion-gateway")
+SQLAlchemyInstrumentor().instrument() # Veritabanı sorgularının sürelerini otomatik ölçer
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Redis bağlantı havuzu (connection pool) oluştur ve app.state'e kaydet
+    app.state.redis = aioredis.from_url(REDIS_URL, encoding="utf8", decode_responses=True)
+    print("Redis aktif ve state'e eklendi.")
+
+    # Kafka Producer'ı başlat
+    ingestion_api.kafka_producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
+    await ingestion_api.kafka_producer.start()
+    print("Kafka Producer aktif.")
+
+    yield 
+
+    # Kapanışta kaynakları sızdırmadan (memory leak) temizle
+    await app.state.redis.close()
+    if ingestion_api.kafka_producer:
+        await ingestion_api.kafka_producer.stop()
+    print("Bağlantılar güvenli bir şekilde kapatıldı.")
+
+app = FastAPI(title="OpsPilot Ingestion Gateway", lifespan=lifespan)
+FastAPIInstrumentor.instrument_app(app)
+
+# Rotaları uygulamaya dahil et
+app.include_router(ingestion_api.router)
+app.include_router(analysis_api.router)
+app.include_router(incidents_api.router)
+app.include_router(organizations_api.router)

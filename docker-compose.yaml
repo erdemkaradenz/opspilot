@@ -18,6 +18,18 @@ services:
       retries: 5
     networks:
       - opspilot-network
+  
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: opspilot-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger Web UI (İzleri buradan izleyeceksin)
+      - "4317:4317"   # OTLP gRPC (OpenTelemetry verileri buraya akacak)
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - opspilot-network
 
   redis:
     image: redis:7-alpine
@@ -61,10 +73,31 @@ services:
     networks:
       - opspilot-network
 
+  n8n:
+    # Doğru, resmi ve yaygın Docker Hub imajını kullanıyoruz.
+    image: n8nio/n8n:latest 
+    container_name: opspilot-n8n
+    restart: unless-stopped
+    ports:
+      # SADECE localhost'tan erişilebilir. Dış dünyaya kapalı! Güvenlik budur.
+      - "127.0.0.1:${N8N_PORT}:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - GENERIC_TIMEZONE=Europe/Istanbul
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - opspilot-network
+
 volumes:
   pgdata:
   redisdata:
   kafkadata:
+  n8n_data:
 
 networks:
   opspilot-network:

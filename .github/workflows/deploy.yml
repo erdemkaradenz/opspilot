@@ -1,0 +1,84 @@
+name: Deploy OpsPilot API to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch: # Manuel tetikleme butonu
+
+env:
+  RESOURCE_GROUP: "rg-opspilot-dev"
+  CONTAINER_APP_NAME: "ca-opspilot-api"
+  ACR_NAME: "acropspilotrv74o" # main.tf içinde tanımladığın benzersiz ACR adı
+  IMAGE_NAME: "opspilot-api"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry (ACR)
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Azure Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          acrName: ${{ env.ACR_NAME }}
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          imageToDeploy: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      
+      
+
+      - name: Run Smoke Test & Health Check
+        run: |
+          APP_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
+          
+          echo "Hedef URL: https://$APP_URL/docs"
+          
+          # Container'ın ayağa kalkması için kısa bir bekleme ve probe testi
+          for i in {1..6}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$APP_URL/docs" || true)
+            if [ "$STATUS" -eq 200 ]; then
+              echo "Sistem ayakta! HTTP 200 alındı."
+              exit 0
+            fi
+            echo "Ayağa kalkması bekleniyor (Deneme $i/6)... Durum: $STATUS"
+            sleep 10
+          done
+          
+          echo "Hata: Uygulama belirlenen sürede 200 dönmedi!"
+          exit 1

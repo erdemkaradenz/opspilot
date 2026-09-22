@@ -1,0 +1,25 @@
+# Güvenlik ve Sırlar
+.env
+.env.*
+.git
+.github
+terraform/
+
+# Python ve Sanal Ortam
+__pycache__
+*.pyc
+.venv/
+venv/
+env/
+.pytest_cache
+.ruff_cache
+alembic/versions/__pycache__
+
+# IDE ve OS Kalıntıları
+.vscode/
+.idea/
+.DS_Store
+
+# Test ve Dökümanlar
+tests/
+README.md
